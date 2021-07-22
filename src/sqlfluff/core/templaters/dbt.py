@@ -92,23 +92,31 @@ class DbtTemplater(JinjaTemplater):
 
         do_not_track()
 
-        if "0.17" in self.dbt_version:
-            from dbt.parser.manifest import (
-                load_internal_manifest as load_macro_manifest,
-                load_manifest,
-            )
+        if "0.17" in self.dbt_version or "0.18" in self.dbt_version or "0.19" in self.dbt_version:
+          if "0.17" in self.dbt_version:
+              from dbt.parser.manifest import (
+                  load_internal_manifest as load_macro_manifest,
+                  load_manifest,
+              )
+          else:
+              from dbt.parser.manifest import (
+                  load_macro_manifest,
+                  load_manifest,
+              )
+
+              load_macro_manifest = partial(load_macro_manifest, macro_hook=identity)
+
+          dbt_macros_manifest = load_macro_manifest(self.dbt_config)
+          self.dbt_manifest = load_manifest(
+              self.dbt_config, dbt_macros_manifest, macro_hook=identity
+          )
+
         else:
-            from dbt.parser.manifest import (
-                load_macro_manifest,
-                load_manifest,
-            )
+            from dbt.parser.manifest import ManifestLoader
 
-            load_macro_manifest = partial(load_macro_manifest, macro_hook=identity)
+            self.dbt_manifest = ManifestLoader.get_full_manifest(self.dbt_config, reset = True)
 
-        dbt_macros_manifest = load_macro_manifest(self.dbt_config)
-        self.dbt_manifest = load_manifest(
-            self.dbt_config, dbt_macros_manifest, macro_hook=identity
-        )
+
         return self.dbt_manifest
 
     @cached_property
